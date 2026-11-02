@@ -18,9 +18,22 @@
 
 Spot is a two-year-old black labrador with a red collar. Lick biscuits to grow; gold ones score 5. Mind the fence, the flowers and your own tail.
 
+<!-- run-steps:start -->
+## Run it locally, step by step
+
+1. **Get the code:**
+
+   ```sh
+   git clone https://github.com/Gitguy268/spot-snake.git
+   cd spot-snake
+   ```
+
+2. **Open `index.html`** by double-clicking it. There is nothing to install or build.
+<!-- run-steps:end -->
+
 ## Play
 
-Spot's Biscuit Snake isn't on GitHub yet. In a copy of this folder, open `index.html` in a browser. There is nothing to install or build.
+Clone or download this repository, then open `index.html` in a browser. There is nothing to install or build.
 
 ## Controls
 
