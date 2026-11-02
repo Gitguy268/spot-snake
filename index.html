@@ -1,0 +1,1382 @@
+<title>Spot's Biscuit Snake</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEKElEQVR4nO1Wa2yTVRh+zve1AaK/dOvWurEKlXbNyC5fNy5lbko2I/xwFl3YxagYWAgmzdR4SRwDTDTRIUtcyBgzmqEiUQjeUQPaNSySdR1Gs1twqNvarVURYzSwft9rzunQQtz4us1f7vlzet7zfu/79L2c9wAL+L+DJf0BY8RRkJfPiktu53vEYjG0tLTMyiZL1rnX64Xf7wMggTESqwaCe81ayEYDml/el7RdXfB6veQqzOMeSVEUyszMJJfLRS5XAWVlZYmVE+Rn9fX1XE8XJL2Kfr8fpMki5MXudRgZGQERARqDx+NBMHhW7IkBnZ2des1Cd6hkWaaCggL09PSAr9xZaWmpOPP5fIJYIBCAoihi1Wtb0s2UESYiY9A0DZoWE6tKmsi/qk4KHU4qGp3gZPGfgMWrDhkZGSL/3GdiTUyp6c4/h+4ICMvEMxyHqqpXSMVrIYFnMjZZMsqJXCwWC0wmk9hEo1GMjY3Nxd7s8KndQSfstqRCPqcUXIv8lzLBapdgLmAzHbbX5tGG6nJAI4T6z+HUN7999WTHyTWYR0gzOq9Zj+d3HhItl+6woiQnZfW/6R6syaX9m3OptWolzVsEzjZvIlI18ZsPG0u2DZIkoenFd7C380fxXU+Th8x2KyAxgCTRDaGhYXR1DcB7tE9XQRquFZxpriKjehmtb56GqsUHDm+1uspFSHNY8eelmNB7pdJJZqcNjQ0d2LW7CtGhH2C6zQqL3Qr35CXgaB/mDdtcZgp98Bjt35xNdS4zvbBxBQWbKij0yeM09tFTtDXfLOTBvZvo0VWpNPrhE7RFSaN56YKnNzjU7dVuqLKMwqIiHAiEWWwqKsdfP4HIwBAO9oYZl7ce7sIzzz4MBg2GhAux7YF8eqTwlsuzIlBZvlJKsy9FtP977DtyepDLmBa/9ytqNkJlV5uY+O68uI0nKS5vvGsZrcq1QibNmDSBLUoapdusogva3vbjrTPnHFw+EvkdkmzEnuc6IE/90R1KOu3aXQ2Kqfj6iyBeC45PFaGEFHsmn9pImoCBSYgODAOMV/g/FnhzMDWGhp21IB4OAJN8JkASk/C4b+hv3XvKckAaQ3t3mOnqgkTwPKc6bwVpGhoa78fWoZ/o/c+6ULejAscOnYIbhEj0YlwX4m2Cm1csw/ZqwnLzt1RWYkff4AR+jlzAdJCmPQFwoDvExvvPg2QJMCzG0hwb7i1X+OsEngfvQCR0AcdODsR1A2H2y+Aw9jS0Iz17OcrKc5HqtMGSsghHvpy+JRl0tOB96+1wFhfxZyjee+NjrF2djVAognc/H8CrvVdyDWxT0slzpwOmtJsAJmMiHMHdTb4ZfRiuR6AtEGa/Sov9D+GGdbz8rdYshEJ/oMM/2n24d7zoKt2ecXbReGM3MLpE0njVs+j17C9gAX8B96O4z0KWgREAAAAASUVORK5CYII=">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--
+  Spot's Biscuit Snake
+  A snake game starring Spot, a 2-year-old black labrador with a red collar.
+
+  Built on ideas from two open-source snake games:
+  - epidemian/snake (Unlicense) https://github.com/epidemian/snake
+    Input queue with the opposite-direction check, tail-leaves-before-head-arrives
+    movement, food dropped only on empty cells, a speed ramp as the snake grows,
+    high score in localStorage, pause when the window loses focus.
+  - janbodnar/Java-Snake-Game (BSD-2-Clause) https://github.com/janbodnar/Java-Snake-Game
+    The head / body / food sprite model on a fixed tile grid with solid walls.
+
+  Two things follow Phaser (MIT) https://github.com/phaserjs/phaser
+    Gamepad support: the button numbers of the standard layout, and a button or
+    stick counting once it is pushed past halfway.
+    The crumbs: particles thrown out at once at random angles and speeds, pulled
+    down by gravity and gone after a fixed lifespan.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- media="print" keeps the font stylesheet from holding up the first paint; onload switches it on. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" media="print" onload="this.media='all'">
+<style>
+  /* Layout: one centred arcade column. The HUD is Spot's collar, the playfield is a fenced lawn. */
+  :root {
+    --night: #17131f;
+    --panel: #231c31;
+    --line: #3d3355;
+    --shadow: #0c0a11;
+    --paper: #f3ead8;
+    --dim: #aaa0bf;
+    --collar: #d8342f;
+    --collar-deep: #96202a;
+    --tag: #f2c14e;
+    --tag-ink: #3a2607;
+    --fence: #8a5a34;
+    --fence-deep: #5d3a1f;
+    --lawn: #6dbb4f;
+    --scrim: rgba(23, 19, 31, 0.18);
+    --font-display: "Press Start 2P", "Courier New", monospace;
+    --font-body: "VT323", ui-monospace, Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+
+  /* Needed when the file is opened straight from disk. */
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--night);
+    color: var(--paper);
+    font-family: var(--font-body);
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  .app {
+    max-width: 832px;
+    margin-inline: auto;
+    padding-inline: 16px;
+    padding-block: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(13px, 3.6vw, 20px);
+    font-weight: 400;
+    line-height: 1.5;
+    text-align: center;
+    text-wrap: balance;
+    text-shadow: 3px 3px 0 var(--collar-deep);
+  }
+
+  /* HUD and playfield share one width: the playfield sets it. */
+  .screen {
+    width: fit-content;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hud {
+    width: 0;
+    min-width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+    padding: 7px 8px;
+    background: var(--collar);
+    border: 3px solid var(--collar-deep);
+    border-bottom: 0;
+    font-family: var(--font-display);
+    font-size: 9px;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tag {
+    padding: 4px 6px;
+    background: var(--tag);
+    color: var(--tag-ink);
+    box-shadow: 2px 2px 0 var(--collar-deep);
+    white-space: nowrap;
+  }
+
+  .counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+
+  .counts span { white-space: nowrap; }
+
+  .stage {
+    position: relative;
+    overflow: hidden;
+    line-height: 0;
+    border: 6px solid var(--fence);
+    box-shadow: inset 0 0 0 2px var(--fence-deep), 0 6px 0 var(--shadow);
+    background: var(--lawn);
+    touch-action: none;
+  }
+
+  canvas {
+    display: block;
+    max-width: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: var(--scrim);
+    line-height: 1.15;
+  }
+
+  .card {
+    max-height: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 12px 14px;
+    background: var(--night);
+    border-top: 3px solid var(--collar);
+    text-align: center;
+  }
+
+  .card h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--tag);
+    text-wrap: balance;
+  }
+
+  .card p {
+    margin: 0;
+    max-width: 34ch;
+    font-size: 18px;
+    text-wrap: balance;
+  }
+
+  .pop {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    font-family: var(--font-display);
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--paper);
+    text-shadow: 2px 2px 0 var(--collar-deep);
+    pointer-events: none;
+    animation: pop 0.6s steps(6) forwards;
+  }
+
+  .pop b { color: var(--collar); font-weight: 400; text-shadow: none; }
+  .pop.gold { color: var(--tag); }
+
+  @keyframes pop {
+    from { transform: translate(-50%, -100%); opacity: 1; }
+    to { transform: translate(-50%, -280%); opacity: 0; }
+  }
+
+  .btn {
+    min-height: 40px;
+    padding: 10px 12px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--paper);
+    background: var(--panel);
+    border: 2px solid var(--line);
+    border-radius: 0;
+    box-shadow: 0 3px 0 var(--shadow);
+    cursor: pointer;
+  }
+
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shadow); }
+  .btn:focus-visible, a:focus-visible { outline: 2px solid var(--tag); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+
+  .btn.go {
+    background: var(--collar);
+    border-color: var(--collar-deep);
+  }
+
+  .btn[aria-pressed="true"] {
+    background: var(--tag);
+    border-color: var(--tag);
+    color: var(--tag-ink);
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .dpad {
+    display: none;
+    grid-template-columns: repeat(3, 60px);
+    grid-template-rows: repeat(3, 60px);
+    gap: 4px;
+    touch-action: manipulation;
+  }
+
+  .dpad .btn { min-height: 0; padding: 0; font-size: 16px; }
+  .dpad [data-dir="up"] { grid-area: 1 / 2; }
+  .dpad [data-dir="left"] { grid-area: 2 / 1; }
+  .dpad [data-dir="right"] { grid-area: 2 / 3; }
+  .dpad [data-dir="down"] { grid-area: 3 / 2; }
+
+  @media (hover: none), (pointer: coarse) {
+    .dpad { display: grid; }
+    .keys { display: none; }
+  }
+
+  .help {
+    margin: 0;
+    max-width: 46ch;
+    color: var(--dim);
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  .help kbd {
+    font-family: var(--font-body);
+    font-size: inherit;
+    color: var(--paper);
+  }
+
+  .credit {
+    margin: 0;
+    max-width: 52ch;
+    font-size: 16px;
+    color: var(--dim);
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  .credit a { color: var(--tag); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pop { animation: none; }
+    .btn:active { transform: none; }
+  }
+</style>
+
+<main class="app" id="app">
+  <h1>SPOT'S BISCUIT SNAKE</h1>
+
+  <div class="screen">
+    <div class="hud">
+      <span class="tag">SPOT &middot; AGE 2</span>
+      <span class="counts">
+        <span>SCORE <span id="score">000</span></span>
+        <span>BEST <span id="best">000</span></span>
+      </span>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="game" role="img"
+        aria-label="Playfield: Spot the black labrador chasing biscuits across a fenced lawn"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="card">
+          <h2 id="overlayTitle">BISCUIT TIME</h2>
+          <p id="overlayText">Lick biscuits to grow. Gold ones score 5. Mind the fence, the flowers and your tail.</p>
+          <button class="btn go" id="overlayBtn" type="button">Start</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" id="speeds" role="group" aria-label="Speed">
+    <button class="btn" type="button" data-speed="puppy" aria-pressed="false">Puppy</button>
+    <button class="btn" type="button" data-speed="normal" aria-pressed="true">Normal</button>
+    <button class="btn" type="button" data-speed="zoomies" aria-pressed="false">Zoomies</button>
+  </div>
+
+  <div class="row">
+    <button class="btn" id="pauseBtn" type="button" hidden>Pause</button>
+    <button class="btn" id="soundBtn" type="button">Sound: all</button>
+    <button class="btn" id="aiBtn" type="button" aria-pressed="false">AI plays</button>
+  </div>
+
+  <div class="dpad" id="dpad" aria-label="Direction pad">
+    <button class="btn" type="button" data-dir="up" aria-label="Up">&#9650;</button>
+    <button class="btn" type="button" data-dir="left" aria-label="Left">&#9664;</button>
+    <button class="btn" type="button" data-dir="right" aria-label="Right">&#9654;</button>
+    <button class="btn" type="button" data-dir="down" aria-label="Down">&#9660;</button>
+  </div>
+
+  <p class="help">
+    <span class="keys"><kbd>Arrows</kbd>, <kbd>WASD</kbd> or a gamepad steer. <kbd>Space</kbd> pauses. <kbd>M</kbd> changes the sound.</span>
+    On a phone, swipe on the lawn or use the pad. Spot speeds up as the biscuits add up.
+  </p>
+
+  <p class="credit">
+    Built on ideas from
+    <a href="https://github.com/epidemian/snake" target="_blank" rel="noopener">epidemian/snake</a> and
+    <a href="https://github.com/janbodnar/Java-Snake-Game" target="_blank" rel="noopener">janbodnar/Java-Snake-Game</a>.
+  </p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* LOGIC-START: no DOM in this block, so it can be checked headless. */
+  var COLS = 18, ROWS = 16, START_LEN = 4, MAX_QUEUED_TURNS = 3;
+  // Milliseconds per step: `slow` at the start, `fast` once Spot fills the lawn.
+  var SPEEDS = {
+    puppy: { slow: 190, fast: 120 },
+    normal: { slow: 150, fast: 90 },
+    zoomies: { slow: 115, fast: 65 }
+  };
+  var GOLD_EVERY = 5, GOLD_POINTS = 5, GOLD_MS = 6000;
+  var BED_EVERY = 4, MAX_BEDS = 8, BED_CLEARANCE = 5;
+
+  var DIRS = {
+    up: { x: 0, y: -1 },
+    down: { x: 0, y: 1 },
+    left: { x: -1, y: 0 },
+    right: { x: 1, y: 0 }
+  };
+
+  // Sprites as palette keys, drawn facing right. '.' is transparent.
+  var SPRITES = {
+    head: [
+      '....................',
+      '.....EEEE...........',
+      '...EEEEEEE..........',
+      '..EEEEEEEEE.........',
+      '..EEEKKKKKKK........',
+      '..EEKKKKKKKKK.......',
+      '...KKKKKKWWKKK......',
+      '..KKKKKKKWAKKKKK....',
+      '..KKKKKKKKKKKKKKKK..',
+      '..KKKKKKKKKKKKKKKNN.',
+      '..KKKKKKKKKKKKKKKNN.',
+      '..KKKKKKKKKKKKKKKK..',
+      '..KKKKKKKWAKKKKK....',
+      '...KKKKKKWWKKK......',
+      '..EEKKKKKKKKK.......',
+      '..EEEKKKKKKK........',
+      '..EEEEEEEEE.........',
+      '...EEEEEEE..........',
+      '.....EEEE...........',
+      '....................'
+    ],
+    biscuit: [
+      '................',
+      '................',
+      '................',
+      '..OO........OO..',
+      '.OTTO......OTTO.',
+      '.OTHTOOOOOOTHTO.',
+      '.OTTTTTTTTTTTTO.',
+      '..OTHHHHHHHHTO..',
+      '..OTTTTTTTTTTO..',
+      '.OTTTTTTTTTTTTO.',
+      '.OTSTOOOOOOTSTO.',
+      '.OSSO......OSSO.',
+      '..OO........OO..',
+      '................',
+      '................',
+      '................'
+    ],
+    bed: [
+      '................',
+      '..bbbbbbbbbbbb..',
+      '.bssssssssssssb.',
+      '.bsFssssssFsssb.',
+      '.bFYFssssFYFssb.',
+      '.bsFsgssssFsgsb.',
+      '.bssgssFsssgssb.',
+      '.bsssgFYFsssssb.',
+      '.bsFsssFsgsFssb.',
+      '.bFYFssssgFYFsb.',
+      '.bsFsgssssgFssb.',
+      '.bssgssFssssssb.',
+      '.bsssgFYFsssssb.',
+      '.bsssssFssssssb.',
+      '..bbbbbbbbbbbb..',
+      '................'
+    ]
+  };
+
+  function createGame(rand, speed) {
+    var snake = [], y = Math.floor(ROWS / 2);
+    for (var i = 0; i < START_LEN; i++) snake.push({ x: START_LEN + 1 - i, y: y });
+    var g = {
+      speed: SPEEDS[speed] ? speed : 'normal',
+      snake: snake, dir: DIRS.right, queue: [],
+      food: null, gold: null, goldTicks: 0, beds: [],
+      licks: 0, score: 0, over: false, cause: ''
+    };
+    g.food = emptyCell(g, rand);
+    return g;
+  }
+
+  // Turns wait in a queue and one is used per tick, so two fast key presses
+  // can never fold Spot back onto the segment right behind the head.
+  function queueTurn(g, d) {
+    var last = g.queue[0] || g.dir;
+    if (d.x + last.x === 0 && d.y + last.y === 0) return false;
+    if (d.x === last.x && d.y === last.y) return false;
+    if (g.queue.length >= MAX_QUEUED_TURNS) return false;
+    g.queue.unshift(d);
+    return true;
+  }
+
+  function at(p, x, y) { return !!p && p.x === x && p.y === y; }
+
+  // Advances one tick. Returns 'move', 'lick', 'gold', 'over' or 'win'.
+  function step(g, rand) {
+    if (g.over) return 'over';
+    if (g.queue.length) g.dir = g.queue.pop();
+    var head = g.snake[0], i;
+    var nx = head.x + g.dir.x, ny = head.y + g.dir.y;
+    if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) {
+      g.over = true; g.cause = 'fence';
+      return 'over';
+    }
+    for (i = 0; i < g.beds.length; i++) {
+      if (at(g.beds[i], nx, ny)) {
+        g.over = true; g.cause = 'flowers';
+        return 'over';
+      }
+    }
+    var licks = at(g.food, nx, ny), golden = at(g.gold, nx, ny), grows = licks || golden;
+    // The tail moves out before the head moves in, so its cell is free
+    // unless Spot is growing this tick.
+    var solid = grows ? g.snake.length : g.snake.length - 1;
+    for (i = 0; i < solid; i++) {
+      if (at(g.snake[i], nx, ny)) {
+        g.over = true; g.cause = 'tail';
+        return 'over';
+      }
+    }
+    if (!grows) g.snake.pop();
+    g.snake.unshift({ x: nx, y: ny });
+
+    if (golden) {
+      g.score += GOLD_POINTS;
+      g.gold = null; g.goldTicks = 0;
+      return 'gold';
+    }
+    if (g.gold && --g.goldTicks <= 0) g.gold = null;
+    if (!licks) return 'move';
+
+    g.score++; g.licks++;
+    g.food = emptyCell(g, rand);
+    if (!g.food) {
+      g.over = true; g.cause = 'full';
+      return 'win';
+    }
+    if (g.licks % GOLD_EVERY === 0 && !g.gold) {
+      g.gold = emptyCell(g, rand);
+      g.goldTicks = g.gold ? Math.round(GOLD_MS / tickTime(g)) : 0;
+    }
+    if (g.licks % BED_EVERY === 0 && g.beds.length < MAX_BEDS) {
+      var bed = emptyCell(g, rand, bedOk);
+      if (bed) g.beds.push(bed);
+    }
+    return 'lick';
+  }
+
+  // Picks at random among the cells that hold nothing: not Spot, not a biscuit,
+  // not a flower bed. `ok` can narrow the choice further.
+  function emptyCell(g, rand, ok) {
+    var taken = {}, i;
+    function take(p) { if (p) taken[p.y * COLS + p.x] = true; }
+    for (i = 0; i < g.snake.length; i++) take(g.snake[i]);
+    for (i = 0; i < g.beds.length; i++) take(g.beds[i]);
+    take(g.food); take(g.gold);
+    var free = [];
+    for (var c = 0; c < COLS * ROWS; c++) {
+      if (taken[c]) continue;
+      var x = c % COLS, y = Math.floor(c / COLS);
+      if (!ok || ok(g, x, y)) free.push({ x: x, y: y });
+    }
+    if (!free.length) return null;
+    return free[Math.min(free.length - 1, Math.floor(rand() * free.length))];
+  }
+
+  // A flower bed must be fair: away from the fence and from other beds (so it
+  // can never wall off part of the lawn), and not close to or straight ahead of Spot.
+  function bedOk(g, x, y) {
+    if (x < 1 || y < 1 || x > COLS - 2 || y > ROWS - 2) return false;
+    var h = g.snake[0], d = g.dir;
+    if (Math.abs(x - h.x) + Math.abs(y - h.y) < BED_CLEARANCE) return false;
+    if (d.x !== 0 && y === h.y && (x - h.x) * d.x > 0) return false;
+    if (d.y !== 0 && x === h.x && (y - h.y) * d.y > 0) return false;
+    for (var i = 0; i < g.beds.length; i++) {
+      if (Math.abs(g.beds[i].x - x) <= 1 && Math.abs(g.beds[i].y - y) <= 1) return false;
+    }
+    return true;
+  }
+
+  function tickTime(g) {
+    var s = SPEEDS[g.speed] || SPEEDS.normal;
+    return s.slow + g.snake.length * (s.fast - s.slow) / (COLS * ROWS);
+  }
+
+  // How much lawn Spot can still reach after moving `d`: 0 if the move crashes,
+  // by the same fence, flower and tail rules as step().
+  function roomAfter(g, d) {
+    var h = g.snake[0], nx = h.x + d.x, ny = h.y + d.y, blocked = {}, i;
+    if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) return 0;
+    var grows = at(g.food, nx, ny) || at(g.gold, nx, ny);
+    var solid = grows ? g.snake.length : g.snake.length - 1;
+    for (i = 0; i < g.beds.length; i++) blocked[g.beds[i].y * COLS + g.beds[i].x] = true;
+    for (i = 0; i < solid; i++) blocked[g.snake[i].y * COLS + g.snake[i].x] = true;
+    if (blocked[ny * COLS + nx]) return 0;
+    var seen = {}, todo = [ny * COLS + nx], count = 0;
+    seen[todo[0]] = true;
+    while (todo.length) {
+      var c = todo.pop(), x = c % COLS, y = Math.floor(c / COLS);
+      count++;
+      [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]].forEach(function (n) {
+        var k = n[1] * COLS + n[0];
+        if (n[0] < 0 || n[1] < 0 || n[0] >= COLS || n[1] >= ROWS || blocked[k] || seen[k]) return;
+        seen[k] = true;
+        todo.push(k);
+      });
+    }
+    return count;
+  }
+
+  // The AI player's question for Laya: only the moves that don't crash (and, when
+  // possible, don't box Spot in), each described by what it does.
+  function aiQuestion(g) {
+    var h = g.snake[0], t = g.gold || g.food, moves = [], room = {};
+    function dist(x, y) { return t ? Math.abs(t.x - x) + Math.abs(t.y - y) : 0; }
+    Object.keys(DIRS).forEach(function (name) {
+      var d = DIRS[name];
+      if (d.x + g.dir.x === 0 && d.y + g.dir.y === 0) return;
+      var r = roomAfter(g, d);
+      if (r) { moves.push(name); room[name] = r; }
+    });
+    var roomy = moves.filter(function (m) { return room[m] > g.snake.length; });
+    if (roomy.length) moves = roomy;
+    // Left to itself Laya circles (it is weak at this zero-shot and leans on the word
+    // "right"), so when some moves make progress it picks among those only.
+    var closer = moves.filter(function (m) { return dist(h.x + DIRS[m].x, h.y + DIRS[m].y) < dist(h.x, h.y); });
+    if (closer.length) moves = closer;
+    var what = (g.gold ? 'golden ' : '') + 'biscuit';
+    var options = moves.map(function (m) {
+      var d = DIRS[m], nx = h.x + d.x, ny = h.y + d.y;
+      var effect = at(t, nx, ny) ? 'eats the ' + what
+        : dist(nx, ny) < dist(h.x, h.y) ? 'goes toward the ' + what : 'goes away from the ' + what;
+      return m + ': ' + effect + ', leaves ' + room[m] + ' open squares';
+    });
+    var heading = Object.keys(DIRS).filter(function (k) { return DIRS[k] === g.dir; })[0] || 'right';
+    var dx = t ? t.x - h.x : 0, dy = t ? t.y - h.y : 0;
+    var where = (dx ? Math.abs(dx) + (dx > 0 ? ' right' : ' left') : '') + (dx && dy ? ' and ' : '') +
+      (dy ? Math.abs(dy) + (dy > 0 ? ' down' : ' up') : '');
+    return {
+      moves: moves, options: options,
+      ask: 'Which way should Spot step next to reach the ' + what + ' without getting boxed in?',
+      state: 'Spot is ' + g.snake.length + ' squares long on a ' + COLS + ' by ' + ROWS + ' lawn, heading ' + heading +
+        '. The ' + what + ' is ' + (where || 'here') + '.'
+    };
+  }
+
+  // Laya's input layout: [CLS] choice question: ask [SEP] [MASK] opt … [SEP] state [SEP].
+  // Ported from build_sequence in convaiinnovations/laya rl_common.py (Apache-2.0).
+  // `enc` turns text into token ids without special tokens.
+  var LAYA_IDS = { cls: 50281, sep: 50282, mask: 50284 }, LAYA_MAX = 512, LAYA_HEAD = 192, LAYA_OPT = 48;
+  function buildSequence(enc, q) {
+    var opts = q.options.map(function (o) { return [LAYA_IDS.mask].concat(enc(' ' + o).slice(0, LAYA_OPT)); });
+    var budget = LAYA_HEAD - opts.reduce(function (n, o) { return n + o.length; }, 0);
+    var ids = [LAYA_IDS.cls].concat(enc('choice question: ' + q.ask).slice(0, Math.max(8, budget)), [LAYA_IDS.sep]);
+    var markers = [];
+    opts.forEach(function (o) { markers.push(ids.length); ids = ids.concat(o); });
+    ids.push(LAYA_IDS.sep);
+    var room = Math.max(0, LAYA_MAX - ids.length - 1);
+    ids = ids.concat(enc(q.state).slice(0, room), [LAYA_IDS.sep]);
+    return { ids: ids, markers: markers };
+  }
+  /* LOGIC-END */
+
+  var T = 16, W = COLS * T, H = ROWS * T, MAX_SCALE = 3, TAIL_LEN = 14;
+  var CARD_DELAY = 800, RESTART_GUARD = 500;
+  var PAL = {
+    K: '#121218', D: '#3a3a48', E: '#2a2a35', A: '#c9862b', W: '#ffffff', N: '#5d5d70',
+    R: '#d8342f', r: '#96202a', G: '#f2c14e', P: '#ff7fa3', p: '#ffb3c7',
+    O: '#5a3a1a', T: '#dba25c', H: '#f4cf93', S: '#a66f35',
+    b: '#4a2d1a', s: '#7a4f2c', F: '#fff6ee', Y: '#ffcf3f', g: '#2e7d32',
+    lawnA: '#6dbb4f', lawnB: '#62ae47'
+  };
+  var GOLD_PAL = { O: '#7a4a00', T: '#f7c531', H: '#fff3a8', S: '#c98d12' };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var app = $('app'), stage = $('stage'), canvas = $('game'), ctx = canvas.getContext('2d');
+  var overlay = $('overlay'), overlayTitle = $('overlayTitle'), overlayText = $('overlayText'), overlayBtn = $('overlayBtn');
+  var scoreEl = $('score'), bestEl = $('best'), pauseBtn = $('pauseBtn'), soundBtn = $('soundBtn');
+  var speedBtns = document.querySelectorAll('#speeds [data-speed]');
+  var calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  canvas.width = W; canvas.height = H;
+
+  function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function save(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* storage is optional */ } }
+  function clamp01(n) { return n < 0 ? 0 : n > 1 ? 1 : n; }
+
+  // Before a game starts the lawn shows what is what: Spot, a biscuit, a golden one, a flower bed.
+  function titleScene() {
+    var cells = [[8, 1], [7, 1], [6, 1], [5, 1], [5, 2], [5, 3], [4, 3], [3, 3], [2, 3]];
+    return {
+      speed: 'normal', dir: DIRS.right, queue: [], score: 0, licks: 0, over: false, cause: '',
+      snake: cells.map(function (c) { return { x: c[0], y: c[1] }; }),
+      food: { x: 11, y: 1 }, gold: { x: 14, y: 3 }, goldTicks: 1e9, beds: [{ x: 11, y: 3 }]
+    };
+  }
+
+  var speed = SPEEDS[load('spotSpeed')] ? load('spotSpeed') : 'normal';
+  var soundMode = load('spotSound') || (load('spotMuted') === '1' ? 'off' : 'all'); // all | fx | off
+  if (!{ all: 1, fx: 1, off: 1 }[soundMode]) soundMode = 'all';
+  var bests = {};
+  Object.keys(SPEEDS).forEach(function (s) { bests[s] = parseInt(load('spotBest-' + s), 10) || 0; });
+  var oldBest = parseInt(load('spotBest'), 10) || 0; // from before speeds existed
+  if (oldBest > bests.normal) { bests.normal = oldBest; save('spotBest-normal', String(oldBest)); }
+
+  var game = titleScene();
+  var state = 'title'; // title | playing | paused | over
+  var lastTick = 0, pausedFrac = 1;
+  var moved = false, slideTail = null; // how the last step changed Spot, for the slide between tiles
+  var eaten = null;                    // biscuit Spot has reached in the rules but not yet on screen
+  var crumbs = [];                     // flying off the last biscuit
+  var lickAt = -1e9, happyUntil = -1e9;
+  var overAt = 0, overResult = '', record = false, cardShown = false, cardAt = 0;
+
+  /* ---------- sound ---------- */
+  var actx = null, noiseBuf = null;
+  function wakeAudio() {
+    if (!actx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      try { actx = new AC(); } catch (e) { return; }
+    }
+    if (actx.state === 'suspended') actx.resume();
+  }
+  function tone(type, freq, when, dur, vol, slideTo) {
+    if (!actx) return;
+    try {
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, when);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, when + dur);
+      g.gain.setValueAtTime(vol, when);
+      g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(when); o.stop(when + dur + 0.02);
+    } catch (e) { /* sound is optional */ }
+  }
+  function beep(freq, delay, dur, slideTo, type, vol) {
+    if (soundMode === 'off' || !actx) return;
+    tone(type || 'square', freq, actx.currentTime + delay, dur, vol || 0.05, slideTo);
+  }
+  function hiss(delay, dur, vol) {
+    if (soundMode === 'off' || !actx) return;
+    try {
+      if (!noiseBuf) {
+        noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.2), actx.sampleRate);
+        var d = noiseBuf.getChannelData(0);
+        for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      var src = actx.createBufferSource(), g = actx.createGain(), t = actx.currentTime + delay;
+      src.buffer = noiseBuf;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      src.connect(g); g.connect(actx.destination);
+      src.start(t); src.stop(t + dur + 0.02);
+    } catch (e) { /* sound is optional */ }
+  }
+  var sfx = {
+    bark: function () {
+      beep(330, 0, 0.09, 130, 'sawtooth', 0.07); hiss(0, 0.06, 0.05);
+      beep(390, 0.17, 0.1, 140, 'sawtooth', 0.07); hiss(0.17, 0.06, 0.05);
+    },
+    lick: function () { beep(520, 0, 0.07, 1040); beep(880, 0.07, 0.08, 1320); },
+    gold: function () { beep(784, 0, 0.06); beep(1047, 0.06, 0.06); beep(1319, 0.12, 0.06); beep(1568, 0.18, 0.16); },
+    over: function () { beep(392, 0, 0.14); beep(311, 0.14, 0.14); beep(196, 0.28, 0.3, 98); },
+    win: function () { beep(523, 0, 0.1); beep(659, 0.1, 0.1); beep(784, 0.2, 0.1); beep(1047, 0.3, 0.3); }
+  };
+
+  // A four-bar loop in eighth notes (MIDI numbers, 0 = rest), scheduled a little
+  // ahead on the audio clock so it stays in time.
+  var NOTE = 0.15;
+  var LEAD = [72, 76, 79, 76, 72, 76, 79, 0, 69, 72, 76, 72, 69, 72, 76, 0,
+              65, 69, 72, 69, 65, 69, 72, 74, 67, 71, 74, 71, 79, 0, 74, 0];
+  var BASS = [48, 0, 0, 0, 55, 0, 0, 0, 45, 0, 0, 0, 52, 0, 0, 0,
+              41, 0, 0, 0, 48, 0, 0, 0, 43, 0, 0, 0, 50, 0, 43, 0];
+  var music = { timer: null, next: 0, i: 0 };
+  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  function musicTick() {
+    if (!actx) return;
+    while (music.next < actx.currentTime + 0.3) {
+      if (LEAD[music.i]) tone('square', hz(LEAD[music.i]), music.next, NOTE * 0.9, 0.016);
+      if (BASS[music.i]) tone('triangle', hz(BASS[music.i]), music.next, NOTE * 3.5, 0.05);
+      music.next += NOTE;
+      music.i = (music.i + 1) % LEAD.length;
+    }
+  }
+  function startMusic(delay) {
+    if (soundMode !== 'all' || !actx || music.timer || state !== 'playing') return;
+    music.next = actx.currentTime + (delay || 0.05);
+    music.timer = setInterval(musicTick, 100);
+    musicTick();
+  }
+  function stopMusic() {
+    clearInterval(music.timer);
+    music.timer = null;
+  }
+
+  /* ---------- drawing ---------- */
+  var lawn = document.createElement('canvas');
+  lawn.width = W; lawn.height = H;
+  (function () {
+    var l = lawn.getContext('2d');
+    for (var y = 0; y < ROWS; y++) {
+      for (var x = 0; x < COLS; x++) {
+        l.fillStyle = (x + y) % 2 ? PAL.lawnB : PAL.lawnA;
+        l.fillRect(x * T, y * T, T, T);
+      }
+    }
+  })();
+
+  // Fills a rect given in the frame of a tile whose top-left pixel is (X, Y):
+  // u runs toward `f` (forward), v across it. u and v may run past the tile.
+  function px(X, Y, f, u, v, w, h, color) {
+    ctx.fillStyle = color;
+    if (f.x === 1) ctx.fillRect(X + u, Y + v, w, h);
+    else if (f.x === -1) ctx.fillRect(X + T - u - w, Y + T - v - h, w, h);
+    else if (f.y === 1) ctx.fillRect(X + T - v - h, Y + u, h, w);
+    else ctx.fillRect(X + v, Y + T - u - w, h, w);
+  }
+
+  // Draws a square sprite centred on the tile at (X, Y); bigger sprites overhang it.
+  function sprite(rows, X, Y, f, swap) {
+    var o = (rows.length - T) / 2;
+    for (var v = 0; v < rows.length; v++) {
+      for (var u = 0; u < rows[v].length; u++) {
+        var c = rows[v].charAt(u);
+        if (c !== '.') px(X, Y, f, u - o, v - o, 1, 1, (swap && swap[c]) || PAL[c]);
+      }
+    }
+  }
+
+  // Spot's spine, one entry per pixel from the head back to the tail tip:
+  // the tile-frame origin at that point and the direction toward the head.
+  var CAP = (COLS * ROWS + 2) * T + 1;
+  var SX = new Int16Array(CAP), SY = new Int16Array(CAP), FX = new Int8Array(CAP), FY = new Int8Array(CAP);
+  function buildSpine(s) {
+    var sn = game.snake, n = sn.length, len = 0, cx, cy;
+    function lineTo(tx, ty) {
+      var dx = tx > cx ? 1 : tx < cx ? -1 : 0, dy = ty > cy ? 1 : ty < cy ? -1 : 0, guard = T * 2;
+      while ((cx !== tx || cy !== ty) && guard-- && len < CAP) {
+        cx += dx; cy += dy;
+        SX[len] = cx; SY[len] = cy; FX[len] = -dx; FY[len] = -dy;
+        len++;
+      }
+    }
+    if (moved) { // the head is s pixels into its new tile
+      cx = sn[1].x * T + (sn[0].x - sn[1].x) * s;
+      cy = sn[1].y * T + (sn[0].y - sn[1].y) * s;
+    } else {
+      cx = sn[0].x * T; cy = sn[0].y * T;
+    }
+    SX[0] = cx; SY[0] = cy; FX[0] = game.dir.x; FY[0] = game.dir.y;
+    len = 1;
+    for (var i = 1; i < n; i++) lineTo(sn[i].x * T, sn[i].y * T);
+    if (moved && slideTail) { // the tail tip is still leaving its old tile
+      var last = sn[n - 1];
+      lineTo(last.x * T + (slideTail.x - last.x) * (T - s), last.y * T + (slideTail.y - last.y) * (T - s));
+    }
+    return len;
+  }
+
+  function drawPaws(k, len, stride) {
+    if (k < 0 || k >= len) return;
+    var f = { x: FX[k], y: FY[k] }, X = SX[k], Y = SY[k];
+    px(X, Y, f, 5 + stride, 0, 5, 3, PAL.K);
+    px(X, Y, f, 5 - stride, 13, 5, 3, PAL.K);
+    px(X, Y, f, 9 + stride, 0, 1, 1, PAL.D);
+    px(X, Y, f, 9 - stride, 15, 1, 1, PAL.D);
+  }
+
+  function drawSpot(now, s) {
+    var len = buildSpine(s), k, f;
+    var bodyEnd = Math.max(0, len - 1 - TAIL_LEN);
+    var playing = state === 'playing', happy = now < happyUntil;
+    var dizzy = state === 'over' && overResult === 'over';
+
+    var stride = (playing && !calm) ? (Math.floor(now / 130) % 2 ? 1 : -1) : 0;
+    drawPaws(14, len, stride);
+    if (bodyEnd - 6 > 22) drawPaws(bodyEnd - 6, len, -stride);
+
+    ctx.fillStyle = PAL.K;
+    for (k = 0; k <= bodyEnd; k++) ctx.fillRect(SX[k] + 2, SY[k] + 2, 12, 12);
+
+    for (k = 24; k < bodyEnd - 4; k += 16) { // coat sheen, which travels with Spot
+      f = { x: FX[k], y: FY[k] };
+      px(SX[k], SY[k], f, 7, 4, 2, 1, PAL.D);
+    }
+
+    for (k = 8; k <= 11 && k < len; k++) { // red collar and gold tag, just behind the head
+      f = { x: FX[k], y: FY[k] };
+      px(SX[k], SY[k], f, 8, 1, 1, 14, k === 11 ? PAL.r : PAL.R);
+    }
+    if (len > 10) px(SX[9], SY[9], { x: FX[9], y: FY[9] }, 7, 7, 2, 2, PAL.G);
+
+    var wag = (calm || dizzy) ? 0 : [-1, 0, 1, 0][Math.floor(now / (happy ? 60 : 110)) % 4];
+    ctx.fillStyle = PAL.K;
+    for (k = bodyEnd + 1; k < len; k++) { // thick at the base, like a lab's tail
+      var p = (k - bodyEnd) / TAIL_LEN, w = p < 0.35 ? 6 : p < 0.7 ? 4 : 2, off = Math.round(wag * 2 * p);
+      if (FX[k] !== 0) ctx.fillRect(SX[k] + 8 - w / 2, SY[k] + 8 - w / 2 + off, w, w);
+      else ctx.fillRect(SX[k] + 8 - w / 2 + off, SY[k] + 8 - w / 2, w, w);
+    }
+
+    var X = SX[0], Y = SY[0], d = game.dir;
+    sprite(SPRITES.head, X, Y, d);
+    if (dizzy) { // eyes that spin
+      var flip = calm ? 0 : Math.floor(now / 140) % 2;
+      for (k = 0; k < 2; k++) {
+        var v0 = 4 + k * 6;
+        px(X, Y, d, 7, v0, 2, 2, PAL.K);
+        px(X, Y, d, 7 + flip, v0, 1, 1, PAL.W);
+        px(X, Y, d, 8 - flip, v0 + 1, 1, 1, PAL.W);
+      }
+      var spin = calm ? 0 : now / 170;
+      ctx.fillStyle = PAL.G;
+      for (k = 0; k < 3; k++) {
+        var a = spin + k * 2.094;
+        ctx.fillRect(Math.round(X + 7 + Math.cos(a) * 12), Math.round(Y + 7 + Math.sin(a) * 12), 2, 2);
+      }
+    } else if (happy) { // eyes squeezed shut
+      px(X, Y, d, 7, 4, 2, 2, PAL.K); px(X, Y, d, 7, 5, 2, 1, PAL.D);
+      px(X, Y, d, 7, 10, 2, 2, PAL.K); px(X, Y, d, 7, 10, 2, 1, PAL.D);
+    }
+
+    var dt = now - lickAt;
+    var tongue = eaten ? 5 : dt < 70 ? 6 : dt < 140 ? 4 : dt < 210 ? 2 : 0;
+    if (tongue) {
+      px(X, Y, d, 17, 6, tongue - 1, 4, PAL.P);
+      px(X, Y, d, 17 + tongue - 1, 7, 1, 2, PAL.P);
+      px(X, Y, d, 17, 8, tongue - 1, 1, PAL.p);
+    }
+  }
+
+  function draw(now, s) {
+    var i, bob = calm ? 0 : Math.floor(now / 320) % 2;
+    ctx.drawImage(lawn, 0, 0);
+    for (i = 0; i < game.beds.length; i++) sprite(SPRITES.bed, game.beds[i].x * T, game.beds[i].y * T, DIRS.right);
+    if (game.food) sprite(SPRITES.biscuit, game.food.x * T, game.food.y * T - bob, DIRS.right);
+    if (game.gold) {
+      var leaving = game.goldTicks * tickTime(game) <= 2000;
+      if (!leaving || Math.floor(now / 120) % 2) {
+        sprite(SPRITES.biscuit, game.gold.x * T, game.gold.y * T - (1 - bob), DIRS.right, GOLD_PAL);
+      }
+    }
+    if (eaten) sprite(SPRITES.biscuit, eaten.x * T, eaten.y * T, DIRS.right, eaten.gold ? GOLD_PAL : null);
+    drawSpot(now, s);
+    drawCrumbs(now);
+  }
+
+  // Crumbs fly off a licked biscuit: thrown out at once at random angles and speeds,
+  // pulled down by gravity and gone after a fixed lifespan, after explode() on
+  // Phaser's particle emitter. Each one is placed from its age, so nothing has to
+  // be stepped, and it shrinks from two pixels to one rather than fading.
+  var CRUMB_MS = 450, CRUMB_GRAVITY = 200, CRUMB_KEYS = ['T', 'H', 'S'];
+  function crumble(now, cell, gold) {
+    if (calm) return;
+    for (var i = 0; i < (gold ? 12 : 8); i++) {
+      var a = Math.random() * Math.PI * 2, v = 40 + Math.random() * 60;
+      crumbs.push({
+        at: now, x: (cell.x + 0.5) * T, y: (cell.y + 0.5) * T,
+        vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40,
+        color: (gold ? GOLD_PAL : PAL)[CRUMB_KEYS[i % 3]]
+      });
+    }
+  }
+  function drawCrumbs(now) {
+    crumbs = crumbs.filter(function (c) { return now - c.at < CRUMB_MS; });
+    for (var i = 0; i < crumbs.length; i++) {
+      var c = crumbs[i], t = (now - c.at) / 1000, size = t * 1600 < CRUMB_MS ? 2 : 1;
+      ctx.fillStyle = c.color;
+      ctx.fillRect(Math.round(c.x + c.vx * t), Math.round(c.y + c.vy * t + CRUMB_GRAVITY * t * t / 2), size, size);
+    }
+  }
+
+  function pop(text, gold) {
+    var head = game.snake[0], el = document.createElement('span');
+    el.className = gold ? 'pop gold' : 'pop';
+    el.innerHTML = text + ' <b>&#9829;</b>';
+    el.style.left = ((head.x + 0.5) / COLS * 100) + '%';
+    el.style.top = (head.y / ROWS * 100) + '%';
+    stage.appendChild(el);
+    setTimeout(function () { el.remove(); }, 600);
+  }
+
+  /* ---------- HUD and overlay ---------- */
+  function pad(n) { return n > 999 ? String(n) : ('00' + n).slice(-3); }
+  function hud() {
+    var running = state === 'playing' || state === 'paused';
+    scoreEl.textContent = pad(game.score);
+    bestEl.textContent = pad(bests[speed]);
+    pauseBtn.hidden = !running;
+    $('speeds').hidden = running; // keeps the pad close to the lawn on a phone
+    pauseBtn.textContent = state === 'paused' ? 'Resume' : 'Pause';
+    soundBtn.textContent = 'Sound: ' + { all: 'all', fx: 'effects', off: 'off' }[soundMode];
+    aiBtn.textContent = ai ? 'AI: on' : 'AI plays';
+    aiBtn.setAttribute('aria-pressed', ai ? 'true' : 'false');
+    Array.prototype.forEach.call(speedBtns, function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-speed') === speed ? 'true' : 'false');
+      b.disabled = running;
+    });
+  }
+  function show(title, text, action) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayBtn.textContent = action;
+    overlay.hidden = false;
+  }
+
+  /* ---------- state changes ---------- */
+  function startGame() {
+    game = createGame(Math.random, speed);
+    state = 'playing';
+    moved = false; slideTail = null; eaten = null;
+    lickAt = happyUntil = -1e9;
+    overlay.hidden = true;
+    lastTick = performance.now() + 250; // a beat before Spot sets off
+    sfx.bark();
+    startMusic(0.45);
+    hud();
+  }
+  function pause() {
+    if (state !== 'playing') return;
+    pausedFrac = clamp01((performance.now() - lastTick) / tickTime(game));
+    state = 'paused';
+    stopMusic();
+    show('PAUSED', 'Spot is sitting. Good dog.', 'Resume');
+    hud();
+  }
+  function resume() {
+    if (state !== 'paused') return;
+    state = 'playing';
+    overlay.hidden = true;
+    lastTick = performance.now() - pausedFrac * tickTime(game); // pick the slide up where it stopped
+    startMusic();
+    hud();
+  }
+  // Spot's face has reached the biscuit on screen.
+  function arrive(now) {
+    var gold = eaten.gold;
+    crumble(now, eaten, gold);
+    if (gold) rumble(120, 0.4);
+    eaten = null;
+    lickAt = now; happyUntil = now + 900;
+    pop(gold ? '+' + GOLD_POINTS : 'SLURP!', gold);
+    (gold ? sfx.gold : sfx.lick)();
+    hud();
+  }
+  function endGame(result, now) {
+    state = 'over';
+    if (ai) stopAi();
+    overAt = now; overResult = result; cardShown = false;
+    record = game.score > bests[speed];
+    if (record) { bests[speed] = game.score; save('spotBest-' + speed, String(game.score)); }
+    stopMusic();
+    (result === 'win' ? sfx.win : sfx.over)();
+    if (result === 'over') rumble(300, 1);
+    hud();
+  }
+  // Held back a moment after a crash so the dizzy face can be seen.
+  function showOverCard(now) {
+    cardShown = true; cardAt = now;
+    var win = overResult === 'win';
+    var why = win ? 'Spot licked the whole lawn clean.'
+      : game.cause === 'fence' ? 'Spot ran into the fence.'
+      : game.cause === 'flowers' ? 'Spot trampled the flower bed.'
+      : 'Spot got tangled in that long tail.';
+    show(win ? 'EVERY BISCUIT!' : record ? 'NEW BEST!' : 'GAME OVER', why + ' Score ' + game.score + '.', 'Play again');
+  }
+  // The main button: start, pause or resume depending on where the game is.
+  function mainAction() {
+    wakeAudio();
+    if (state === 'playing') pause();
+    else if (state === 'paused') resume();
+    else if (state === 'title' || cardShown) startGame();
+  }
+  function steer(name) {
+    if (ai) stopAi(); // any steering hands control back
+    wakeAudio();
+    if (state === 'over') { // don't restart on a stray key right after a crash
+      if (!cardShown || performance.now() - cardAt < RESTART_GUARD) return;
+      startGame();
+    } else if (state === 'title') {
+      startGame();
+    } else if (state === 'paused') {
+      resume();
+    }
+    queueTurn(game, DIRS[name]);
+  }
+  function cycleSound() {
+    soundMode = { all: 'fx', fx: 'off', off: 'all' }[soundMode];
+    save('spotSound', soundMode);
+    wakeAudio();
+    if (soundMode === 'all') startMusic(); else stopMusic();
+    beep(660, 0, 0.06);
+    hud();
+  }
+
+  /* ---------- AI player: Laya picks each move ---------- */
+  // Laya (Convai Innovations, Apache-2.0) writes no text: it scores the options it
+  // is given. It runs on the GPU through ONNX Runtime Web's WebGPU backend.
+  var LAYA_URL = 'https://huggingface.co/onnx-community/laya-ONNX/resolve/42e2a6e3b3708c8ff5f61f4aa75c314b1449199b/';
+  var ORT_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.webgpu.min.mjs';
+  var TOKENIZERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/tokenizers@0.2.0/dist/tokenizers.mjs';
+  var LAYA_MB = 851;
+  var aiBtn = $('aiBtn'), ai = null, brain = null;
+
+  // shortcut: no CPU fallback (the fp16 graph crawls on wasm); add the wasm backend if people ask for it.
+  if (!navigator.gpu) {
+    aiBtn.disabled = true;
+    aiBtn.title = 'AI play needs WebGPU, which this browser does not offer.';
+  }
+
+  // One file from Hugging Face, kept in Cache Storage so the next visit skips the download.
+  function fetchCached(cache, url, onBytes) {
+    return (cache ? cache.match(url) : Promise.resolve(null)).then(function (hit) {
+      if (hit) return hit.arrayBuffer();
+      return fetch(url).then(function (res) {
+        if (!res.ok) throw new Error('download failed (' + res.status + ')');
+        var reader = res.body.getReader(), parts = [];
+        function pump() {
+          return reader.read().then(function (r) {
+            if (r.done) return new Blob(parts).arrayBuffer();
+            parts.push(r.value);
+            onBytes(r.value.length);
+            return pump();
+          });
+        }
+        return pump();
+      }).then(function (buf) {
+        if (!cache) return buf;
+        var done = function () { return buf; };
+        return cache.put(url, new Response(buf)).then(done, done); // a full disk only costs the next visit a download
+      });
+    });
+  }
+
+  function loadBrain() {
+    if (brain) return brain;
+    var got = 0;
+    function progress(n) {
+      got += n;
+      if (ai && ai.before) overlayText.textContent = 'Fetching Laya: ' + Math.round(got / 1e6) + ' of ' + LAYA_MB + ' MB.';
+    }
+    var cache = Promise.resolve().then(function () { return caches.open('laya-v1'); }).catch(function () { return null; });
+    brain = Promise.all([import(ORT_URL), import(TOKENIZERS_URL), cache]).then(function (m) {
+      var ort = m[0], Tokenizer = m[1].Tokenizer;
+      function file(p) { return fetchCached(m[2], LAYA_URL + p, progress); }
+      return Promise.all([file('tokenizer.json'), file('tokenizer_config.json'),
+        file('onnx/model_fp16.onnx'), file('onnx/model_fp16.onnx_data')]).then(function (f) {
+        var text = new TextDecoder();
+        var tok = new Tokenizer(JSON.parse(text.decode(f[0])), JSON.parse(text.decode(f[1])));
+        return ort.InferenceSession.create(new Uint8Array(f[2]), {
+          executionProviders: ['webgpu'],
+          externalData: [{ path: 'model_fp16.onnx_data', data: new Uint8Array(f[3]) }]
+        }).then(function (session) {
+          return {
+            ort: ort, session: session,
+            enc: function (s) { return tok.encode(s, { add_special_tokens: false }).ids; }
+          };
+        });
+      });
+    });
+    brain.catch(function () { brain = null; }); // the next click tries again
+    return brain;
+  }
+
+  // One forward pass gives a logit per option; the highest wins. (The calibrated
+  // temperatures in Laya's config only reshape probabilities, never the winner.)
+  function decide(b, q) {
+    var s = buildSequence(b.enc, q), Tensor = b.ort.Tensor, n = s.ids.length, k = s.markers.length;
+    function i64(a) { return BigInt64Array.from(a, function (v) { return BigInt(v); }); }
+    return b.session.run({
+      input_ids: new Tensor('int64', i64(s.ids), [1, n]),
+      attention_mask: new Tensor('int64', i64(s.ids.map(function () { return 1; })), [1, n]),
+      marker_pos: new Tensor('int64', i64(s.markers), [1, k]),
+      marker_mask: new Tensor('bool', new Uint8Array(k).fill(1), [1, k]),
+      qtype: new Tensor('int64', i64([0]), [1]) // 0 = choice
+    }).then(function (out) {
+      var z = out.logits.data, best = 0;
+      for (var i = 1; i < k; i++) if (z[i] > z[best]) best = i;
+      return q.moves[best];
+    });
+  }
+
+  // Asks for the next move right after a step, so Laya thinks while Spot slides.
+  // No safe move: Spot crashes. One: no need to ask.
+  function think() {
+    var q = aiQuestion(game), mine = ai;
+    if (q.moves.length < 2) {
+      if (q.moves.length) queueTurn(game, DIRS[q.moves[0]]);
+      return;
+    }
+    ai.busy = true;
+    loadBrain().then(function (b) { return decide(b, q); }).then(function (move) {
+      if (ai !== mine) return;
+      ai.busy = false;
+      queueTurn(game, DIRS[move]);
+    }, function (e) { if (ai === mine) aiFailed(e); });
+  }
+
+  function startAi() {
+    wakeAudio();
+    pause();
+    var mine = ai = { busy: true, before: [overlayTitle.textContent, overlayText.textContent, overlayBtn.textContent, overlay.hidden] };
+    show('WAKING LAYA', 'Fetching Laya...', '');
+    overlayBtn.hidden = true;
+    hud();
+    loadBrain().then(function () {
+      if (ai !== mine) return;
+      ai.before = null;
+      overlayBtn.hidden = false;
+      startGame();
+      ai.busy = false;
+      think();
+    }, function (e) { if (ai === mine) aiFailed(e); });
+  }
+  function stopAi() {
+    var was = ai && ai.before; // still loading: put the card back as it was
+    ai = null;
+    if (was) {
+      overlayTitle.textContent = was[0]; overlayText.textContent = was[1]; overlayBtn.textContent = was[2];
+      overlay.hidden = was[3];
+      overlayBtn.hidden = false;
+    }
+    hud();
+  }
+  function aiFailed(e) {
+    stopAi();
+    pause();
+    overlay.hidden = false;
+    overlayText.textContent = 'Laya could not run: ' + ((e && e.message) || e) + '.';
+  }
+
+  /* ---------- input ---------- */
+  var KEYS = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right'
+  };
+  window.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var onButton = e.target && e.target.tagName === 'BUTTON';
+    if (KEYS[e.key]) {
+      e.preventDefault();
+      steer(KEYS[e.key]);
+    } else if (e.key === ' ' || e.key === 'Enter' || e.key === 'p' || e.key === 'P') {
+      if (onButton && e.key !== 'p' && e.key !== 'P') return; // the focused button handles it
+      e.preventDefault();
+      if (!e.repeat) mainAction();
+    } else if (e.key === 'm' || e.key === 'M') {
+      if (!e.repeat) cycleSound();
+    }
+  });
+
+  overlayBtn.addEventListener('click', function () { mainAction(); overlayBtn.blur(); });
+  pauseBtn.addEventListener('click', function () { mainAction(); pauseBtn.blur(); });
+  soundBtn.addEventListener('click', function () { cycleSound(); soundBtn.blur(); });
+  aiBtn.addEventListener('click', function () { (ai ? stopAi : startAi)(); aiBtn.blur(); });
+  Array.prototype.forEach.call(speedBtns, function (b) {
+    b.addEventListener('click', function () {
+      if (state === 'playing' || state === 'paused') return;
+      speed = b.getAttribute('data-speed');
+      save('spotSpeed', speed);
+      hud();
+      b.blur();
+    });
+  });
+
+  var pad4 = document.querySelectorAll('#dpad [data-dir]');
+  Array.prototype.forEach.call(pad4, function (b) {
+    b.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      steer(b.getAttribute('data-dir'));
+    });
+    // Keyboard and switch users reach the pad through click (detail 0 = not a pointer).
+    b.addEventListener('click', function (e) { if (e.detail === 0) steer(b.getAttribute('data-dir')); });
+  });
+
+  // Gamepad. The button numbers of the standard layout and the rule that a button
+  // or stick counts once it is pushed past halfway follow Phaser's Gamepad class.
+  // Only a change is passed on, so a held direction steers once and a held
+  // Start does not flicker the pause.
+  var padDir = '', padGo = false;
+  function held(p, n) { return !!p.buttons[n] && p.buttons[n].value >= 0.5; }
+  function readPads(pads) {
+    var dir = '', go = false;
+    for (var i = 0; i < pads.length; i++) {
+      var p = pads[i];
+      if (!p || p.mapping !== 'standard') continue; // other layouts number their buttons differently
+      var x = p.axes[0] || 0, y = p.axes[1] || 0;
+      if (held(p, 12)) dir = 'up';
+      else if (held(p, 13)) dir = 'down';
+      else if (held(p, 14)) dir = 'left';
+      else if (held(p, 15)) dir = 'right';
+      else if (Math.abs(x) >= 0.5 || Math.abs(y) >= 0.5) {
+        dir = Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'down' : 'up');
+      }
+      go = go || held(p, 0) || held(p, 9); // A or Start
+    }
+    if (dir && dir !== padDir) steer(dir);
+    if (go && !padGo) mainAction();
+    padDir = dir; padGo = go;
+  }
+  function pollPads() {
+    try { readPads(navigator.getGamepads()); } catch (e) { /* missing or blocked: no gamepad */ }
+  }
+
+  // A pad with a motor rumbles on a crash and on a golden biscuit. This is the
+  // browser's own Gamepad API; where a pad or browser lacks it, nothing happens.
+  function rumble(ms, strength) {
+    try {
+      Array.prototype.forEach.call(navigator.getGamepads(), function (p) {
+        if (!p || !p.vibrationActuator) return;
+        Promise.resolve(p.vibrationActuator.playEffect('dual-rumble', {
+          duration: ms, strongMagnitude: strength, weakMagnitude: strength / 2
+        })).catch(function () { /* the pad refused */ });
+      });
+    } catch (e) { /* missing or blocked: no gamepad */ }
+  }
+
+  // Swipe anywhere on the lawn.
+  var swipe = null;
+  stage.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' || (e.target && e.target.tagName === 'BUTTON')) return;
+    swipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!swipe || swipe.id !== e.pointerId) return;
+    var dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
+    steer(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    swipe.x = e.clientX; swipe.y = e.clientY;
+  });
+  function endSwipe(e) { if (swipe && swipe.id === e.pointerId) swipe = null; }
+  stage.addEventListener('pointerup', endSwipe);
+  stage.addEventListener('pointercancel', endSwipe);
+
+  // A swipe or a pad press is not enough for a browser to allow sound; lifting the finger is.
+  function unlockSound() { wakeAudio(); startMusic(); }
+  document.addEventListener('pointerup', unlockSound);
+  document.addEventListener('touchend', unlockSound);
+
+  window.addEventListener('blur', pause);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) pause(); });
+
+  /* ---------- sizing: whole-number scale in device pixels ---------- */
+  function fit() {
+    var dpr = window.devicePixelRatio || 1, cs = getComputedStyle(app);
+    var frame = stage.offsetWidth - canvas.offsetWidth;
+    var availW = app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - frame;
+    var availH = Math.max(H, window.innerHeight - (app.offsetHeight - canvas.offsetHeight));
+    var maxW = Math.min(availW, availH * W / H, W * MAX_SCALE);
+    var scale = Math.floor(maxW * dpr / W) / dpr;
+    if (scale < 1) scale = Math.min(1, availW / W);
+    canvas.style.width = (W * scale) + 'px';
+    canvas.style.height = (H * scale) + 'px';
+  }
+  window.addEventListener('resize', fit);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+
+  /* ---------- loop ---------- */
+  var shaking = false;
+  function frame(now) {
+    pollPads();
+    // While Laya thinks, Spot waits on the square he reached.
+    if (state === 'playing' && now - lastTick >= tickTime(game) && !(ai && ai.busy)) {
+      if (eaten) arrive(now);
+      lastTick = now;
+      var n = game.snake.length, oldTail = game.snake[n - 1];
+      var result = step(game, Math.random);
+      if (result === 'over') {
+        moved = false; slideTail = null;
+        endGame(result, now);
+      } else {
+        moved = true;
+        slideTail = game.snake.length === n ? oldTail : null;
+        if (result !== 'move') eaten = { x: game.snake[0].x, y: game.snake[0].y, gold: result === 'gold' };
+        if (result === 'win') { arrive(now); endGame(result, now); }
+        if (ai) think();
+      }
+    }
+    var t = state === 'paused' ? pausedFrac : clamp01((now - lastTick) / tickTime(game));
+    var s = Math.round(t * T);
+    if (eaten && s >= 12 && state === 'playing') arrive(now);
+    if (state === 'over' && !cardShown && now - overAt >= CARD_DELAY) showOverCard(now);
+
+    var shake = state === 'over' && overResult === 'over' && !calm && now - overAt < 260;
+    if (shake) {
+      canvas.style.transform = 'translate(' + (Math.floor(now / 40) % 2 ? 3 : -3) + 'px,' + (Math.floor(now / 55) % 2 ? 2 : -2) + 'px)';
+    } else if (shaking) {
+      canvas.style.transform = '';
+    }
+    shaking = shake;
+
+    draw(now, s);
+    requestAnimationFrame(frame);
+  }
+
+  function boot(saved) {
+    // When the page is updated under an open viewer, pick the game back up, paused.
+    var g = saved && saved.v === 2 && saved.game;
+    if (g && g.snake && g.snake.length >= START_LEN && g.food && g.beds && g.dir && !g.over && SPEEDS[g.speed]) {
+      game = g;
+      speed = g.speed;
+      state = 'paused';
+      pausedFrac = 1;
+      show('PAUSED', 'Spot is sitting. Good dog.', 'Resume');
+    }
+    hud();
+    fit();
+    requestAnimationFrame(frame);
+  }
+
+  var hot = window.claude && window.claude.hot;
+  try {
+    if (hot && hot.snapshot) {
+      hot.snapshot(function () {
+        return state === 'playing' || state === 'paused' ? { v: 2, game: game } : {};
+      });
+    }
+  } catch (e) { /* not in a viewer */ }
+  if (hot && hot.ready) hot.ready(boot);
+  else boot((hot && hot.data) || {});
+})();
+</script>
