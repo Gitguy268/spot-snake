@@ -18,6 +18,10 @@
 
 Spot is a two-year-old black labrador with a red collar. Lick biscuits to grow; gold ones score 5. Mind the fence, the flowers and your own tail.
 
+<!-- live-links -->
+**Live:** [gitguy268.github.io/spot-snake](https://gitguy268.github.io/spot-snake/) · [spot-snake.vercel.app](https://spot-snake.vercel.app)
+<!-- /live-links -->
+
 <!-- run-steps:start -->
 ## Run it locally, step by step
 
