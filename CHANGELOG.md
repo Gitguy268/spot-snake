@@ -5,6 +5,11 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **AI plays** now runs models trained on Spot's own decisions instead of the untrained base Laya. The default is [spot-snake-laya-multilingual-v0.1](https://huggingface.co/Lucasgitguy-co/spot-snake-laya-multilingual-v0.1) (about 680 MB); a new **Model** button switches to [spot-snake-d1-2B-v0.1](https://huggingface.co/Lucasgitguy-co/spot-snake-d1-2B-v0.1) (about 1.6 GB). Their browser graphs agree with the teacher on 100.00% and 98.95% of the 1,708 held-out test moves (measured with ONNX Runtime on CPU). The choice is remembered.
+- `tests/logic.test.mjs` checks both input builders against token ids from each model's own Python code (`tests/fixtures/`).
+
 ### Added
 
 - The first public version of the game.
