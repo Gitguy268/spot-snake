@@ -49,25 +49,30 @@ Clone or download this repository, then open `index.html` in a browser. There is
 | Gamepad: d-pad or left stick; <kbd>A</kbd> or <kbd>Start</kbd> | Steer; pause and resume. A pad with a motor rumbles on a crash and on a golden biscuit |
 | Swipe on the lawn, or the on-screen pad | Steer on a phone |
 | **AI plays** | Spot steers himself. Any steering key, swipe or a second press takes over again |
+| **Model** | Which model plays: Laya (the default) or d1-2B. Pick it before pressing **AI plays** |
 
 There are three speeds: **Puppy**, **Normal** and **Zoomies**. Pick one before you start. Spot speeds up as the biscuits add up.
 
 ## AI plays
 
-Press **AI plays** and Spot steers himself. The moves are picked by
-[Laya](https://huggingface.co/convaiinnovations/laya), a small decision model by Convai Innovations. Laya doesn't write
-text; it scores a list of options. Each step, the game works out which moves don't crash Spot, which of those leave
-him enough room, and which of those bring him closer to the biscuit. It describes each move that is left ("goes toward
-the biscuit, leaves 212 open squares") and Laya picks one. Laya on its own tends to walk in circles, which is why the
-game narrows its options first.
+Press **AI plays** and Spot steers himself. Each step, the game works out which moves don't crash Spot, which of those
+leave him enough room, and which of those bring him closer to the biscuit. It describes each move that is left ("goes
+toward the biscuit, leaves 212 open squares") and a decision model picks one. The models don't write text; each scores
+the options in one pass on the GPU. Both were trained on these exact questions, copying a teacher that keeps the most
+open room. The **Model** button picks which one plays:
 
-- It needs **WebGPU** (tested in Chromium; current Chrome, Edge and Brave have it). Without it the button is greyed out.
-- The first press downloads the model, about 851 MB, from Hugging Face ([`onnx-community/laya-ONNX`](https://huggingface.co/onnx-community/laya-ONNX), fp16) and keeps it in the browser's Cache Storage. Later presses start in a few seconds.
-- Each choice takes a moment on the GPU, so Spot waits on each square while Laya thinks. The speed buttons don't apply.
+| Model | Download | Teacher agreement (1,708 test moves) | Licence |
+| --- | --- | --- | --- |
+| [Laya Multilingual](https://huggingface.co/Lucasgitguy-co/spot-snake-laya-multilingual-v0.1) (default) | about 680 MB, fp16 | 100.00% | Apache-2.0 |
+| [d1-2B](https://huggingface.co/Lucasgitguy-co/spot-snake-d1-2B-v0.1) | about 1.6 GB, int4/fp16 | 98.95% (99.41% before 4-bit quantization) | LvW-license-Snake-1.0 |
+
+- It needs **WebGPU** (tested in Chromium; current Chrome, Edge and Brave have it). Without it the buttons are greyed out.
+- The first press downloads the chosen model from Hugging Face and keeps it in the browser's Cache Storage. Later presses start in a few seconds.
+- Each choice takes a moment on the GPU, so Spot waits on each square while the model thinks. The speed buttons don't apply.
 
 ## What it stores
 
-The best score for each speed, the speed you picked and your sound setting are kept in the browser's `localStorage`. The page loads its two fonts from Google Fonts; without a connection it falls back to the fonts on your device. Nothing else is fetched until you press **AI plays**. That press loads ONNX Runtime Web and tokenizers.js from jsDelivr and the Laya model from Hugging Face. The model is kept in Cache Storage (`laya-v1`); clearing the site's data removes it.
+The best score for each speed, the speed you picked, your sound setting and the AI model you picked are kept in the browser's `localStorage`. The page loads its two fonts from Google Fonts; without a connection it falls back to the fonts on your device. Nothing else is fetched until you press **AI plays**. That press loads ONNX Runtime Web and tokenizers.js from jsDelivr and the chosen model from Hugging Face. The models are kept in Cache Storage (`spot-laya-multilingual-v0.1`, `spot-d1-2b-v0.1`); clearing the site's data removes them.
 
 ## Contributing
 
@@ -83,6 +88,11 @@ The game builds on ideas from two open-source snake games and one game framework
 - [janbodnar/Java-Snake-Game](https://github.com/janbodnar/Java-Snake-Game) (BSD-2-Clause): the head, body and food sprite model on a fixed tile grid with solid walls.
 - [Phaser](https://github.com/phaserjs/phaser) (MIT): the gamepad button numbers of the standard layout, a button or stick counting once it is pushed past halfway, and the crumbs that fly off a biscuit (thrown out at once at random angles and speeds, pulled down by gravity, gone after a fixed lifespan).
 
-The AI player runs [Laya](https://huggingface.co/convaiinnovations/laya) (Apache-2.0, Convai Innovations) through [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (MIT) and [tokenizers.js](https://github.com/huggingface/tokenizers.js) (Apache-2.0). The way its input is laid out is ported from laya's `rl_common.py`; see [NOTICE](NOTICE).
+The AI player runs two models post-trained for this game, through [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (MIT) and [tokenizers.js](https://github.com/huggingface/tokenizers.js) (Apache-2.0). Neither is part of this repository; they are fetched from Hugging Face at run time under their own licences.
+
+- [spot-snake-laya-multilingual-v0.1](https://huggingface.co/Lucasgitguy-co/spot-snake-laya-multilingual-v0.1) (Apache-2.0), from [Laya Multilingual](https://huggingface.co/convaiinnovations/laya-multilingual) by Convai Innovations. Its input layout is ported from the `laya` package's `common.py` (Apache-2.0).
+- [spot-snake-d1-2B-v0.1](https://huggingface.co/Lucasgitguy-co/spot-snake-d1-2B-v0.1) (LvW-license-Snake-1.0, which includes the LFM Open License v1.0 and its commercial-use limit), from [d1-2B](https://huggingface.co/LiquidAI/d1-2B) by Liquid AI. The browser graph is [LiquidAI/d1-2B-ONNX](https://huggingface.co/LiquidAI/d1-2B-ONNX) with the post-trained last block written in. Its prompt is ported from the model's own `prompt.py`.
+
+See [NOTICE](NOTICE).
 
 The fonts are [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) and [VT323](https://fonts.google.com/specimen/VT323), both under the SIL Open Font License 1.1. They are loaded from Google Fonts and are not part of this repository. All artwork and sound is drawn and synthesised in the page.

@@ -321,6 +321,7 @@
     <button class="btn" id="pauseBtn" type="button" hidden>Pause</button>
     <button class="btn" id="soundBtn" type="button">Sound: all</button>
     <button class="btn" id="aiBtn" type="button" aria-pressed="false">AI plays</button>
+    <button class="btn" id="modelBtn" type="button" title="Which model plays: Laya (680 MB) or d1-2B (1.6 GB)">Model: Laya</button>
   </div>
 
   <div class="dpad" id="dpad" aria-label="Direction pad">
@@ -568,8 +569,9 @@
     return count;
   }
 
-  // The AI player's question for Laya: only the moves that don't crash (and, when
-  // possible, don't box Spot in), each described by what it does.
+  // The AI player's question: only the moves that don't crash (and, when possible,
+  // don't box Spot in), each described by what it does. Both models were trained on
+  // exactly these questions (Lucasgitguy-co/spot-snake-decisions), so keep them as is.
   function aiQuestion(g) {
     var h = g.snake[0], t = g.gold || g.food, moves = [], room = {};
     function dist(x, y) { return t ? Math.abs(t.x - x) + Math.abs(t.y - y) : 0; }
@@ -581,8 +583,8 @@
     });
     var roomy = moves.filter(function (m) { return room[m] > g.snake.length; });
     if (roomy.length) moves = roomy;
-    // Left to itself Laya circles (it is weak at this zero-shot and leans on the word
-    // "right"), so when some moves make progress it picks among those only.
+    // When some moves make progress, the model picks among those only. (This began as a
+    // crutch for the untrained base model, which walked in circles.)
     var closer = moves.filter(function (m) { return dist(h.x + DIRS[m].x, h.y + DIRS[m].y) < dist(h.x, h.y); });
     if (closer.length) moves = closer;
     var what = (g.gold ? 'golden ' : '') + 'biscuit';
@@ -605,19 +607,48 @@
   }
 
   // Laya's input layout: [CLS] choice question: ask [SEP] [MASK] opt … [SEP] state [SEP].
-  // Ported from build_sequence in convaiinnovations/laya rl_common.py (Apache-2.0).
-  // `enc` turns text into token ids without special tokens.
-  var LAYA_IDS = { cls: 50281, sep: 50282, mask: 50284 }, LAYA_MAX = 512, LAYA_HEAD = 192, LAYA_OPT = 48;
-  function buildSequence(enc, q) {
-    var opts = q.options.map(function (o) { return [LAYA_IDS.mask].concat(enc(' ' + o).slice(0, LAYA_OPT)); });
-    var budget = LAYA_HEAD - opts.reduce(function (n, o) { return n + o.length; }, 0);
-    var ids = [LAYA_IDS.cls].concat(enc('choice question: ' + q.ask).slice(0, Math.max(8, budget)), [LAYA_IDS.sep]);
+  // Ported from build_head/build_sequence in laya 0.4.26 common.py (Apache-2.0).
+  // `enc` turns text into token ids without special tokens; `t` holds the model's
+  // special ids and limits (cls, sep, mask, maxLen, headMax).
+  function buildSequence(enc, q, t) {
+    var opts = q.options.map(function (o) { return [t.mask].concat(enc(' ' + o).slice(0, 48)); });
+    var budget = t.headMax - opts.reduce(function (n, o) { return n + o.length; }, 0);
+    if (budget < 16) {
+      var per = Math.max(4, Math.floor((t.headMax - 16) / Math.max(1, opts.length)));
+      opts = opts.map(function (o) { return o.slice(0, per); });
+      budget = t.headMax - opts.reduce(function (n, o) { return n + o.length; }, 0);
+    }
+    var ids = [t.cls].concat(enc('choice question: ' + q.ask).slice(0, Math.max(8, budget)), [t.sep]);
     var markers = [];
     opts.forEach(function (o) { markers.push(ids.length); ids = ids.concat(o); });
-    ids.push(LAYA_IDS.sep);
-    var room = Math.max(0, LAYA_MAX - ids.length - 1);
-    ids = ids.concat(enc(q.state).slice(0, room), [LAYA_IDS.sep]);
-    return { ids: ids, markers: markers };
+    ids.push(t.sep);
+    var room = Math.max(0, t.maxLen - ids.length - 1);
+    ids = ids.concat(enc(q.state).slice(0, room), [t.sep]);
+    return { ids: ids.slice(0, t.maxLen), markers: markers.filter(function (m) { return m < t.maxLen; }) };
+  }
+
+  // d1's input for one choice question, as its own prompt.py and attention.pack_set
+  // build it: a chat turn with the state, the question and lettered options, read at
+  // the last token. Tokens up to "QUESTION:" are the state (-1), the rest question 1.
+  // `enc` must keep special tokens written in the text.
+  var D1_CODES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  function d1Row(enc, q) {
+    var prefix = '<|startoftext|><|im_start|>user\n' + q.state + '\n\n\nQUESTION:\n';
+    var suffix = q.ask + '\n\nOptions:\n' +
+      q.options.map(function (o, i) { return D1_CODES[i] + ' ' + o + '\n'; }).join('') +
+      '\nReply with the option code only.<|im_end|>\n<|im_start|>assistant\n<think></think>';
+    var ids = enc(prefix + suffix), state = ids.length - enc(suffix).length;
+    return { ids: ids, questionIds: ids.map(function (_, i) { return i < state ? -1 : 1; }), slot: ids.length - 1 };
+  }
+  // Each option's answer tokens: its letter, and " letter" when that is one other token.
+  function d1Readout(enc, n) {
+    var groups = [];
+    for (var i = 0; i < n; i++) {
+      var g = [enc(D1_CODES[i])[0]], spaced = enc(' ' + D1_CODES[i]);
+      if (spaced.length === 1 && spaced[0] !== g[0]) g.push(spaced[0]);
+      groups.push(g);
+    }
+    return groups;
   }
   /* LOGIC-END */
 
@@ -952,6 +983,8 @@
     soundBtn.textContent = 'Sound: ' + { all: 'all', fx: 'effects', off: 'off' }[soundMode];
     aiBtn.textContent = ai ? 'AI: on' : 'AI plays';
     aiBtn.setAttribute('aria-pressed', ai ? 'true' : 'false');
+    modelBtn.textContent = 'Model: ' + MODELS[modelKey].name;
+    if (navigator.gpu) modelBtn.disabled = !!ai;
     Array.prototype.forEach.call(speedBtns, function (b) {
       b.setAttribute('aria-pressed', b.getAttribute('data-speed') === speed ? 'true' : 'false');
       b.disabled = running;
@@ -1053,18 +1086,32 @@
     hud();
   }
 
-  /* ---------- AI player: Laya picks each move ---------- */
-  // Laya (Convai Innovations, Apache-2.0) writes no text: it scores the options it
-  // is given. It runs on the GPU through ONNX Runtime Web's WebGPU backend.
-  var LAYA_URL = 'https://huggingface.co/onnx-community/laya-ONNX/resolve/42e2a6e3b3708c8ff5f61f4aa75c314b1449199b/';
+  /* ---------- AI player: a decision model picks each move ---------- */
+  // Two models trained on Spot's own decisions. Neither writes text: each scores the
+  // options it is given in one forward pass on the GPU (ONNX Runtime Web, WebGPU).
+  var HF = 'https://huggingface.co/Lucasgitguy-co/';
+  var MODELS = {
+    laya: {
+      name: 'Laya', mb: 680, cache: 'spot-laya-multilingual-v0.1',
+      url: HF + 'spot-snake-laya-multilingual-v0.1/resolve/55fefe647b868d4e33ccbb9781e68cdcd6ec7756/',
+      graph: 'onnx/model_fp16.onnx', data: 'model_fp16.onnx.data'
+    },
+    d1: {
+      name: 'd1-2B', mb: 1590, cache: 'spot-d1-2b-v0.1',
+      url: HF + 'spot-snake-d1-2B-v0.1/resolve/f8a88601dc27f5a56c60a66cd083258107cf2b7f/',
+      graph: 'onnx/decoder_q4f16.onnx', data: 'decoder_q4f16.onnx_data'
+    }
+  };
   var ORT_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.webgpu.min.mjs';
   var TOKENIZERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/tokenizers@0.2.0/dist/tokenizers.mjs';
-  var LAYA_MB = 851;
-  var aiBtn = $('aiBtn'), ai = null, brain = null;
+  var aiBtn = $('aiBtn'), modelBtn = $('modelBtn'), ai = null, brains = {};
+  var modelKey = MODELS[load('spotModel')] ? load('spotModel') : 'laya';
+  // The untrained base Laya (851 MB) that earlier versions cached is no longer used.
+  try { caches.delete('laya-v1').catch(function () {}); } catch (e) { /* no Cache Storage here */ }
 
-  // shortcut: no CPU fallback (the fp16 graph crawls on wasm); add the wasm backend if people ask for it.
+  // shortcut: no CPU fallback (the graphs crawl on wasm); add the wasm backend if people ask for it.
   if (!navigator.gpu) {
-    aiBtn.disabled = true;
+    aiBtn.disabled = modelBtn.disabled = true;
     aiBtn.title = 'AI play needs WebGPU, which this browser does not offer.';
   }
 
@@ -1092,55 +1139,75 @@
     });
   }
 
-  function loadBrain() {
-    if (brain) return brain;
-    var got = 0;
+  function loadBrain(key) {
+    if (brains[key]) return brains[key];
+    var m = MODELS[key], got = 0;
     function progress(n) {
       got += n;
-      if (ai && ai.before) overlayText.textContent = 'Fetching Laya: ' + Math.round(got / 1e6) + ' of ' + LAYA_MB + ' MB.';
+      if (ai && ai.before) overlayText.textContent = 'Fetching ' + m.name + ': ' + Math.round(got / 1e6) + ' of ' + m.mb + ' MB.';
     }
-    var cache = Promise.resolve().then(function () { return caches.open('laya-v1'); }).catch(function () { return null; });
-    brain = Promise.all([import(ORT_URL), import(TOKENIZERS_URL), cache]).then(function (m) {
-      var ort = m[0], Tokenizer = m[1].Tokenizer;
-      function file(p) { return fetchCached(m[2], LAYA_URL + p, progress); }
-      return Promise.all([file('tokenizer.json'), file('tokenizer_config.json'),
-        file('onnx/model_fp16.onnx'), file('onnx/model_fp16.onnx_data')]).then(function (f) {
+    var cache = Promise.resolve().then(function () { return caches.open(m.cache); }).catch(function () { return null; });
+    var brain = brains[key] = Promise.all([import(ORT_URL), import(TOKENIZERS_URL), cache]).then(function (mods) {
+      var ort = mods[0], Tokenizer = mods[1].Tokenizer;
+      function file(p) { return fetchCached(mods[2], m.url + p, progress); }
+      return Promise.all([file('tokenizer.json'), file('tokenizer_config.json'), file(m.graph), file('onnx/' + m.data)]).then(function (f) {
         var text = new TextDecoder();
         var tok = new Tokenizer(JSON.parse(text.decode(f[0])), JSON.parse(text.decode(f[1])));
         return ort.InferenceSession.create(new Uint8Array(f[2]), {
           executionProviders: ['webgpu'],
-          externalData: [{ path: 'model_fp16.onnx_data', data: new Uint8Array(f[3]) }]
+          externalData: [{ path: m.data, data: new Uint8Array(f[3]) }]
         }).then(function (session) {
-          return {
-            ort: ort, session: session,
-            enc: function (s) { return tok.encode(s, { add_special_tokens: false }).ids; }
-          };
+          var b = { key: key, ort: ort, session: session, enc: function (s) { return tok.encode(s, { add_special_tokens: false }).ids; } };
+          if (key === 'laya') {
+            var id = function (s) { return tok.token_to_id(s); };
+            b.special = { cls: id('<bos>'), sep: id('<eos>'), mask: id('<mask>'), maxLen: 1024, headMax: 256 };
+          }
+          return b;
         });
       });
     });
-    brain.catch(function () { brain = null; }); // the next click tries again
+    brain.catch(function () { delete brains[key]; }); // the next click tries again
     return brain;
   }
 
-  // One forward pass gives a logit per option; the highest wins. (The calibrated
-  // temperatures in Laya's config only reshape probabilities, never the winner.)
+  function i64(a) { return BigInt64Array.from(a, function (v) { return BigInt(v); }); }
+  function argmax(scores) {
+    var best = 0;
+    for (var i = 1; i < scores.length; i++) if (scores[i] > scores[best]) best = i;
+    return best;
+  }
+
+  // One forward pass gives a score per option; the highest wins.
   function decide(b, q) {
-    var s = buildSequence(b.enc, q), Tensor = b.ort.Tensor, n = s.ids.length, k = s.markers.length;
-    function i64(a) { return BigInt64Array.from(a, function (v) { return BigInt(v); }); }
+    var Tensor = b.ort.Tensor;
+    if (b.key === 'laya') {
+      var s = buildSequence(b.enc, q, b.special), n = s.ids.length, k = s.markers.length;
+      return b.session.run({
+        input_ids: new Tensor('int64', i64(s.ids), [1, n]),
+        attention_mask: new Tensor('int64', i64(s.ids.map(function () { return 1; })), [1, n]),
+        marker_pos: new Tensor('int64', i64(s.markers), [1, k]),
+        marker_mask: new Tensor('bool', new Uint8Array(k).fill(1), [1, k]),
+        qtype: new Tensor('int64', i64([0]), [1]) // 0 = choice
+      }).then(function (out) { return q.moves[argmax(Array.from(out.logits.data).slice(0, k))]; });
+    }
+    // d1: the vocabulary logits at the answer slot, max-pooled over each option's letter tokens.
+    var r = d1Row(b.enc, q), len = r.ids.length, empty = new Tensor('float32', new Float32Array(0), [0, 2048]);
     return b.session.run({
-      input_ids: new Tensor('int64', i64(s.ids), [1, n]),
-      attention_mask: new Tensor('int64', i64(s.ids.map(function () { return 1; })), [1, n]),
-      marker_pos: new Tensor('int64', i64(s.markers), [1, k]),
-      marker_mask: new Tensor('bool', new Uint8Array(k).fill(1), [1, k]),
-      qtype: new Tensor('int64', i64([0]), [1]) // 0 = choice
-    }).then(function (out) {
-      var z = out.logits.data, best = 0;
-      for (var i = 1; i < k; i++) if (z[i] > z[best]) best = i;
-      return q.moves[best];
+      input_ids: new Tensor('int64', i64(r.ids), [1, len]),
+      attention_mask: new Tensor('int64', i64(r.ids.map(function () { return 1; })), [1, len]),
+      position_ids: new Tensor('int64', i64(r.ids.map(function (_, i) { return i; })), [1, len]),
+      question_ids: new Tensor('int64', i64(r.questionIds), [1, len]),
+      slot_positions: new Tensor('int64', i64([r.slot]), [1]),
+      image_features: empty, video_features: empty
+    }, ['logits']).then(function (out) {
+      var z = out.logits.data;
+      return q.moves[argmax(d1Readout(b.enc, q.moves.length).map(function (g) {
+        return Math.max.apply(null, g.map(function (t) { return Number(z[t]); }));
+      }))];
     });
   }
 
-  // Asks for the next move right after a step, so Laya thinks while Spot slides.
+  // Asks for the next move right after a step, so the model thinks while Spot slides.
   // No safe move: Spot crashes. One: no need to ask.
   function think() {
     var q = aiQuestion(game), mine = ai;
@@ -1149,7 +1216,7 @@
       return;
     }
     ai.busy = true;
-    loadBrain().then(function (b) { return decide(b, q); }).then(function (move) {
+    loadBrain(ai.model).then(function (b) { return decide(b, q); }).then(function (move) {
       if (ai !== mine) return;
       ai.busy = false;
       queueTurn(game, DIRS[move]);
@@ -1159,11 +1226,11 @@
   function startAi() {
     wakeAudio();
     pause();
-    var mine = ai = { busy: true, before: [overlayTitle.textContent, overlayText.textContent, overlayBtn.textContent, overlay.hidden] };
-    show('WAKING LAYA', 'Fetching Laya...', '');
+    var mine = ai = { busy: true, model: modelKey, before: [overlayTitle.textContent, overlayText.textContent, overlayBtn.textContent, overlay.hidden] };
+    show('WAKING ' + MODELS[modelKey].name.toUpperCase(), 'Fetching ' + MODELS[modelKey].name + '...', '');
     overlayBtn.hidden = true;
     hud();
-    loadBrain().then(function () {
+    loadBrain(modelKey).then(function () {
       if (ai !== mine) return;
       ai.before = null;
       overlayBtn.hidden = false;
@@ -1183,10 +1250,11 @@
     hud();
   }
   function aiFailed(e) {
+    var name = MODELS[ai.model].name;
     stopAi();
     pause();
     overlay.hidden = false;
-    overlayText.textContent = 'Laya could not run: ' + ((e && e.message) || e) + '.';
+    overlayText.textContent = name + ' could not run: ' + ((e && e.message) || e) + '.';
   }
 
   /* ---------- input ---------- */
@@ -1213,6 +1281,13 @@
   pauseBtn.addEventListener('click', function () { mainAction(); pauseBtn.blur(); });
   soundBtn.addEventListener('click', function () { cycleSound(); soundBtn.blur(); });
   aiBtn.addEventListener('click', function () { (ai ? stopAi : startAi)(); aiBtn.blur(); });
+  modelBtn.addEventListener('click', function () {
+    if (ai) return;
+    modelKey = modelKey === 'laya' ? 'd1' : 'laya';
+    save('spotModel', modelKey);
+    hud();
+    modelBtn.blur();
+  });
   Array.prototype.forEach.call(speedBtns, function (b) {
     b.addEventListener('click', function () {
       if (state === 'playing' || state === 'paused') return;
@@ -1319,7 +1394,7 @@
   var shaking = false;
   function frame(now) {
     pollPads();
-    // While Laya thinks, Spot waits on the square he reached.
+    // While the model thinks, Spot waits on the square he reached.
     if (state === 'playing' && now - lastTick >= tickTime(game) && !(ai && ai.busy)) {
       if (eaten) arrive(now);
       lastTick = now;
