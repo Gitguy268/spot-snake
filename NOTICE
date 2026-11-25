@@ -74,16 +74,31 @@ phaserjs/phaser (MIT)
 AI player
 ---------
 
-convaiinnovations/laya (Apache-2.0)
-  https://huggingface.co/convaiinnovations/laya
-  Copyright Convai Innovations. The "AI plays" button runs the Laya decision
-  model, in the ONNX conversion at onnx-community/laya-ONNX (Apache-2.0,
-  https://huggingface.co/onnx-community/laya-ONNX). The weights are fetched
-  from Hugging Face at run time and are not part of this repository.
-  buildSequence() in index.html is a JavaScript port of build_sequence() from
-  laya's rl_common.py, changed to fixed option texts and without the
-  option-shrinking branch. The Apache License 2.0 is reproduced at the end of
-  this file.
+The "AI plays" button runs one of two models post-trained for this game. Their
+weights are fetched from Hugging Face at run time, each under its own licence,
+and are not part of this repository.
+
+Lucasgitguy-co/spot-snake-laya-multilingual-v0.1 (Apache-2.0)
+  https://huggingface.co/Lucasgitguy-co/spot-snake-laya-multilingual-v0.1
+  Post-trained from convaiinnovations/laya-multilingual (Apache-2.0,
+  Copyright Convai Innovations, https://huggingface.co/convaiinnovations/laya-multilingual).
+  Its ONNX graph was made with scripts adapted from onnx-community/laya-ONNX
+  (Apache-2.0, https://huggingface.co/onnx-community/laya-ONNX).
+  buildSequence() in index.html is a JavaScript port of build_head() and
+  build_sequence() from the laya package's common.py (laya 0.4.26,
+  Apache-2.0, Convai Innovations), for fixed option texts. The Apache
+  License 2.0 is reproduced at the end of this file.
+
+Lucasgitguy-co/spot-snake-d1-2B-v0.1 (LvW-license-Snake-1.0)
+  https://huggingface.co/Lucasgitguy-co/spot-snake-d1-2B-v0.1
+  Post-trained from LiquidAI/d1-2B (LFM Open License v1.0, Liquid AI,
+  https://huggingface.co/LiquidAI/d1-2B). LvW-license-Snake-1.0 is the LFM
+  Open License v1.0 for the model as a whole plus Apache-2.0 for the new
+  contributions; its commercial-use limit applies. Its browser graph is
+  decoder_q4f16 from LiquidAI/d1-2B-ONNX (LFM Open License v1.0,
+  https://huggingface.co/LiquidAI/d1-2B-ONNX) with the post-trained last
+  block re-quantized into it. d1Row() and d1Readout() in index.html follow
+  the prompt layout of the model's prompt.py and attention.py.
 
 ONNX Runtime Web (MIT, Microsoft) and tokenizers.js (Apache-2.0, Hugging Face)
   https://github.com/microsoft/onnxruntime
